@@ -18,6 +18,7 @@ SDL2Aux *sdlAux;
 int t;
 vector<Triangle> triangles;
 vec3 cameraPos(0, 0, -3.001);
+const float moveSpeed = 0.1f;
 
 // ----------------------------------------------------------------------------
 // FUNCTIONS
@@ -53,15 +54,19 @@ void Update(void) {
   const Uint8 *keystate = SDL_GetKeyboardState(NULL);
   if (keystate[SDL_SCANCODE_UP]) {
     // Move camera forward
+    cameraPos.z += moveSpeed;
   }
   if (keystate[SDL_SCANCODE_DOWN]) {
     // Move camera backward
+    cameraPos.z -= moveSpeed;
   }
   if (keystate[SDL_SCANCODE_LEFT]) {
     // Move camera to the left
+    cameraPos.x += moveSpeed;
   }
   if (keystate[SDL_SCANCODE_RIGHT]) {
     // Move camera to the right
+    cameraPos.x -= moveSpeed;
   }
   if (keystate[SDL_SCANCODE_W]) {
   }
@@ -87,14 +92,7 @@ void Draw() {
     vertices[1] = triangles[i].v1;
     vertices[2] = triangles[i].v2;
 
-    // Add drawing
-    for (int v = 0; v < 3; ++v) {
-      glm::ivec2 projPos;
-      vertices[v] = vertices[v] - cameraPos;
-      VertexShader(vertices[v], projPos);
-      vec3 color(1, 1, 1);
-      sdlAux->putPixel(projPos.x, projPos.y, color);
-    }
+    DrawPolygonEdges(vertices);
   }
 
   sdlAux->render();
@@ -102,8 +100,9 @@ void Draw() {
 
 void VertexShader(const vec3 &v, glm::ivec2 &p) {
   float f = SCREEN_HEIGHT;
-  p.x = f * (v.x / v.z) + (SCREEN_WIDTH / 2.f);
-  p.y = f * (v.y / v.z) + (SCREEN_HEIGHT / 2.f);
+  vec3 v1 = v - cameraPos;
+  p.x = f * (v1.x / v1.z) + (SCREEN_WIDTH / 2.f);
+  p.y = f * (v1.y / v1.z) + (SCREEN_HEIGHT / 2.f);
 }
 
 void Interpolate(glm::ivec2 a, glm::ivec2 b, vector<glm::ivec2> &result) {
