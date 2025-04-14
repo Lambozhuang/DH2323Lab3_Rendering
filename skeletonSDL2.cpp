@@ -18,7 +18,9 @@ SDL2Aux *sdlAux;
 int t;
 vector<Triangle> triangles;
 vec3 cameraPos(0, 0, -3.001);
-const float moveSpeed = 0.1f;
+mat3 R(1.0f);
+float yaw = 0;
+const float moveSpeed = 0.05f;
 
 // ----------------------------------------------------------------------------
 // FUNCTIONS
@@ -51,22 +53,28 @@ void Update(void) {
   t = t2;
   cout << "Render time: " << dt << " ms." << endl;
 
+  // int dx, dy;
+  // SDL_GetRelativeMouseState(&dx, &dy);
+  //
+  // float mouseSensitivity = 0.002f;
+  // yaw -= dx * mouseSensitivity;
+
   const Uint8 *keystate = SDL_GetKeyboardState(NULL);
   if (keystate[SDL_SCANCODE_UP]) {
     // Move camera forward
-    cameraPos.z += moveSpeed;
+    cameraPos += moveSpeed * vec3(R[0][2], R[1][2], R[2][2]);
   }
   if (keystate[SDL_SCANCODE_DOWN]) {
     // Move camera backward
-    cameraPos.z -= moveSpeed;
+    cameraPos -= moveSpeed * vec3(R[0][2], R[1][2], R[2][2]);
   }
   if (keystate[SDL_SCANCODE_LEFT]) {
     // Move camera to the left
-    cameraPos.x += moveSpeed;
+    yaw -= moveSpeed;
   }
   if (keystate[SDL_SCANCODE_RIGHT]) {
     // Move camera to the right
-    cameraPos.x -= moveSpeed;
+    yaw += moveSpeed;
   }
   if (keystate[SDL_SCANCODE_W]) {
   }
@@ -80,6 +88,7 @@ void Update(void) {
   }
   if (keystate[SDL_SCANCODE_E]) {
   }
+  R = mat3(cos(yaw), 0, sin(yaw), 0, 1, 0, -sin(yaw), 0, cos(yaw));
 }
 
 void Draw() {
@@ -100,7 +109,7 @@ void Draw() {
 
 void VertexShader(const vec3 &v, glm::ivec2 &p) {
   float f = SCREEN_HEIGHT;
-  vec3 v1 = v - cameraPos;
+  vec3 v1 = R * (v - cameraPos);
   p.x = f * (v1.x / v1.z) + (SCREEN_WIDTH / 2.f);
   p.y = f * (v1.y / v1.z) + (SCREEN_HEIGHT / 2.f);
 }
