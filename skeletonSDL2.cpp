@@ -2,8 +2,13 @@
 #include "SDL2Auxiliary.h"
 #include "TestModel.h"
 #include <algorithm> //for max()
+#include <cstddef>
+#include <cstdio>
 #include <glm/glm.hpp>
 #include <iostream>
+#include <limits>
+#include <utility>
+#include <vector>
 
 using namespace std;
 using glm::mat3;
@@ -21,6 +26,7 @@ vec3 cameraPos(0, 0, -3.001);
 mat3 R(1.0f);
 float yaw = 0;
 const float moveSpeed = 0.05f;
+vec3 currentColor(0, 0, 0);
 
 // ----------------------------------------------------------------------------
 // FUNCTIONS
@@ -32,6 +38,12 @@ void VertexShader(const vec3 &v, glm::ivec2 &p);
 void Interpolate(glm::ivec2 a, glm::ivec2 b, vector<glm::ivec2> &result);
 void DrawLineSDL(glm::ivec2 a, glm::ivec2 b, vec3 color);
 void DrawPolygonEdges(const vector<vec3> &vertices);
+void ComputePolygonRows(const vector<glm::ivec2> &vertexPixels,
+                        vector<glm::ivec2> &leftPixels,
+                        vector<glm::ivec2> &rightPixels);
+void DrawPolygonRows(const vector<glm::ivec2> &leftPixels,
+                     const vector<glm::ivec2> &rightPixels);
+void DrawPolygon(const vector<vec3> &vertices);
 
 int main(int argc, char *argv[]) {
   LoadTestModel(triangles); // Load model
@@ -42,6 +54,7 @@ int main(int argc, char *argv[]) {
     Update();
     Draw();
   }
+
   sdlAux->saveBMP("screenshot.bmp");
   return 0;
 }
@@ -101,7 +114,10 @@ void Draw() {
     vertices[1] = triangles[i].v1;
     vertices[2] = triangles[i].v2;
 
-    DrawPolygonEdges(vertices);
+    currentColor = triangles[i].color;
+
+    // DrawPolygonEdges(vertices);
+    DrawPolygon(vertices);
   }
 
   sdlAux->render();
@@ -149,4 +165,75 @@ void DrawPolygonEdges(const vector<vec3> &vertices) {
     vec3 color(1, 1, 1);
     DrawLineSDL(projectedVertices[i], projectedVertices[j], color);
   }
+}
+
+void ComputePolygonRows(const vector<glm::ivec2> &vertexPixels,
+                        vector<glm::ivec2> &leftPixels,
+                        vector<glm::ivec2> &rightPixels) {
+  auto minmaxY = std::minmax_element(
+      vertexPixels.begin(), vertexPixels.end(),
+      [](const glm::ivec2 &a, const glm::ivec2 &b) { return a.y < b.y; });
+
+  auto minY = minmaxY.first->y;
+  auto maxY = minmaxY.second->y;
+  // printf("minY: %d, maxY: %d\n", minY, maxY);
+
+  auto rows = maxY - minY + 1;
+
+  leftPixels.resize(rows);
+  rightPixels.resize(rows);
+  for (size_t i = 0; i < rows; ++i) {
+    leftPixels[i].x = numeric_limits<int>::max();
+    leftPixels[i].y = minY + i;
+    rightPixels[i].x = numeric_limits<int>::min();
+    rightPixels[i].y = minY + i;
+  }
+
+  for (int i = 0; i < vertexPixels.size(); ++i) {
+
+    glm::ivec2 a = vertexPixels[i];
+    glm::ivec2 b = vertexPixels[(i + 1) % vertexPixels.size()];
+
+    int deltaY = glm::abs(b.y - a.y);
+    int pixels = deltaY + 1;
+
+    vector<glm::ivec2> edge(pixels);
+    Interpolate(a, b, edge);
+
+    for (const glm::ivec2 &p : edge) {
+      int y = p.y - minY;
+      if (y < leftPixels.size()) {
+        if (p.x < leftPixels[y].x)
+          leftPixels[y].x = p.x;
+        if (p.x > rightPixels[y].x)
+          rightPixels[y].x = p.x;
+      }
+    }
+  }
+}
+
+void DrawPolygonRows(const vector<glm::ivec2> &leftPixels,
+                     const vector<glm::ivec2> &rightPixels) {
+  for (size_t i = 0; i < leftPixels.size(); ++i) {
+    auto y = leftPixels[i].y;
+    auto x_start = rightPixels[i].x;
+    auto x_end = leftPixels[i].x;
+    if (x_start > x_end)
+      std::swap(x_start, x_end);
+    for (auto x = x_start; x < x_end; ++x) {
+      sdlAux->putPixel(x, y, currentColor);
+    }
+  }
+}
+
+void DrawPolygon(const vector<vec3> &vertices) {
+  int V = vertices.size();
+  vector<glm::ivec2> vertexPixels(V);
+  for (int i = 0; i < V; ++i) {
+    VertexShader(vertices[i], vertexPixels[i]);
+  }
+  vector<glm::ivec2> leftPixels;
+  vector<glm::ivec2> rightPixels;
+  ComputePolygonRows(vertexPixels, leftPixels, rightPixels);
+  DrawPolygonRows(leftPixels, rightPixels);
 }
