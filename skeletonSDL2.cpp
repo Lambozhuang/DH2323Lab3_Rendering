@@ -19,7 +19,7 @@ using glm::vec3;
 struct Vertex {
   vec3 position;
   vec3 normal;
-  vec2 reflectance;
+  vec3 reflectance;
 };
 
 struct Pixel {
@@ -146,9 +146,9 @@ void Draw() {
     vertices[0].normal = triangles[i].normal;
     vertices[1].normal = triangles[i].normal;
     vertices[2].normal = triangles[i].normal;
-    vertices[0].reflectance = vec2(0.5f, 0.5f);
-    vertices[1].reflectance = vec2(0.5f, 0.5f);
-    vertices[2].reflectance = vec2(0.5f, 0.5f);
+    vertices[0].reflectance = vec3(1, 1, 1);
+    vertices[1].reflectance = vec3(1, 1, 1);
+    vertices[2].reflectance = vec3(1, 1, 1);
 
     currentColor = triangles[i].color;
 
@@ -168,8 +168,8 @@ void VertexShader(const Vertex &v, Pixel &p) {
   p.zinv = 1.f / v1.z;
   float distanceToLight = glm::distance(v.position, lightPos);
   vec3 directionToLight = glm::normalize(lightPos - v.position);
-  p.illumination = (lightPower * glm::max(0.f, glm::dot(v.normal, directionToLight))) /
-                   (4 * distanceToLight * distanceToLight * glm::pi<float>());
+  p.illumination = v.reflectance * ((lightPower * glm::max(0.f, glm::dot(v.normal, directionToLight))) /
+                   (4 * distanceToLight * distanceToLight * glm::pi<float>()) + indirectLightPowerPerArea);
 }
 
 void PixelShader(const Pixel &p) {
