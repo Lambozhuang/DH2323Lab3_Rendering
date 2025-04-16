@@ -145,16 +145,6 @@ void VertexShader(const vec3 &v, Pixel &p) {
   p.zinv = 1.f / v1.z;
 }
 
-// void Interpolate(glm::ivec2 a, glm::ivec2 b, vector<glm::ivec2> &result) {
-//   int N = result.size();
-//   glm::vec2 step = glm::vec2(b - a) / float(glm::max(N - 1, 1));
-//   glm::vec2 current(a);
-//   for (int i = 0; i < N; ++i) {
-//     result[i] = current;
-//     current += step;
-//   }
-// }
-
 void Interpolate(Pixel a, Pixel b, vector<Pixel> &result) {
   int N = result.size();
   glm::vec2 step = glm::vec2(b.x - a.x, b.y - a.y) / float(glm::max(N - 1, 1));
@@ -170,32 +160,32 @@ void Interpolate(Pixel a, Pixel b, vector<Pixel> &result) {
   }
 }
 
-// void DrawLineSDL(glm::ivec2 a, glm::ivec2 b, vec3 color) {
-//   glm::ivec2 delta = glm::abs(a - b);
-//   int pixels = glm::max(delta.x, delta.y) + 1;
-//   vector<glm::ivec2> line(pixels);
-//   Interpolate(a, b, line);
-//   for (glm::ivec2 pixel : line) {
-//     sdlAux->putPixel(pixel.x, pixel.y, color);
-//   }
-// }
+void DrawLineSDL(Pixel a, Pixel b, vec3 color) {
+  glm::ivec2 delta = glm::ivec2(glm::abs(a.x - b.x), glm::abs(a.y - b.y));
+  int pixels = glm::max(delta.x, delta.y) + 1;
+  vector<Pixel> line(pixels);
+  Interpolate(a, b, line);
+  for (Pixel pixel : line) {
+    sdlAux->putPixel(pixel.x, pixel.y, color);
+  }
+}
 
-// void DrawPolygonEdges(const vector<vec3> &vertices) {
-//   int V = vertices.size();
+void DrawPolygonEdges(const vector<vec3> &vertices) {
+  int V = vertices.size();
 
-//   // Transform each vertex from 3D world position to 2D image position
-//   vector<Pixel> projectedVertices(V);
-//   for (int i = 0; i < V; ++i) {
-//     VertexShader(vertices[i], projectedVertices[i]);
-//   }
+  // Transform each vertex from 3D world position to 2D image position
+  vector<Pixel> projectedVertices(V);
+  for (int i = 0; i < V; ++i) {
+    VertexShader(vertices[i], projectedVertices[i]);
+  }
 
-//   // Loop over all vertices and draw the edge from it to the next vertex
-//   for (int i = 0; i < V; ++i) {
-//     int j = (i + 1) % V;
-//     vec3 color(1, 1, 1);
-//     DrawLineSDL(projectedVertices[i], projectedVertices[j], color);
-//   }
-// }
+  // Loop over all vertices and draw the edge from it to the next vertex
+  for (int i = 0; i < V; ++i) {
+    int j = (i + 1) % V;
+    vec3 color(1, 1, 1);
+    DrawLineSDL(projectedVertices[i], projectedVertices[j], color);
+  }
+}
 
 void ComputePolygonRows(const vector<Pixel> &vertexPixels,
                         vector<Pixel> &leftPixels, vector<Pixel> &rightPixels) {
