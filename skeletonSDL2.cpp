@@ -24,6 +24,7 @@ struct Pixel {
   int x, y;
   float zinv;
   vec3 pos3d;
+  vec3 pos3d_persp;
 };
 
 // ----------------------------------------------------------------------------
@@ -162,7 +163,7 @@ void VertexShader(const Vertex &v, Pixel &p) {
   p.x = f * (v1.x / v1.z) + (SCREEN_WIDTH / 2.f);
   p.y = f * (v1.y / v1.z) + (SCREEN_HEIGHT / 2.f);
   p.zinv = 1.f / v1.z;
-  p.pos3d = v.position;
+  p.pos3d_persp = v.position * p.zinv;
 }
 
 void PixelShader(const Pixel &p) {
@@ -188,12 +189,12 @@ void Interpolate(Pixel a, Pixel b, vector<Pixel> &result) {
 
   vec2 stepXY = vec2(b.x - a.x, b.y - a.y) / float(glm::max(N - 1, 1));
   float stepZinv = (b.zinv - a.zinv) / float(glm::max(N - 1, 1));
-  vec3 stepPos3d = (b.pos3d - a.pos3d) / float(glm::max(N - 1, 1));
+  vec3 stepPos3dPersp = (b.pos3d_persp - a.pos3d_persp) / float(glm::max(N - 1, 1));
 
   float currentX = a.x;
   float currentY = a.y;
   float currentZinv = a.zinv;
-  vec3 currentPos3d = a.pos3d;
+  vec3 currentPos3dPersp = a.pos3d_persp;
 
   for (int i = 0; i < N; ++i) {
     
@@ -201,12 +202,12 @@ void Interpolate(Pixel a, Pixel b, vector<Pixel> &result) {
     result[i].x = static_cast<int>(round(currentX)); // Round instead of truncate
     result[i].y = static_cast<int>(round(currentY)); // Round instead of truncate
     result[i].zinv = currentZinv;
-    result[i].pos3d = currentPos3d;
+    result[i].pos3d_persp = currentPos3dPersp;
 
     currentX += stepXY.x;
     currentY += stepXY.y;
     currentZinv += stepZinv;
-    currentPos3d += stepPos3d;
+    currentPos3dPersp += stepPos3dPersp;
   }
 }
 
@@ -275,12 +276,12 @@ void ComputePolygonRows(const vector<Pixel> &vertexPixels,
         if (p.x < leftPixels[y].x) {
           leftPixels[y].x = p.x;
           leftPixels[y].zinv = p.zinv;
-          leftPixels[y].pos3d = p.pos3d;
+          leftPixels[y].pos3d_persp = p.pos3d_persp;
         }
         if (p.x > rightPixels[y].x) {
           rightPixels[y].x = p.x;
           rightPixels[y].zinv = p.zinv;
-          rightPixels[y].pos3d = p.pos3d;
+          rightPixels[y].pos3d_persp = p.pos3d_persp;
         }
       }
     }
@@ -293,8 +294,11 @@ void DrawPolygonRows(const vector<Pixel> &leftPixels,
     if (leftPixels[i].x < rightPixels[i].x) {
       vector<Pixel> row(rightPixels[i].x - leftPixels[i].x + 1);
       Interpolate(leftPixels[i], rightPixels[i], row);
-      for (const Pixel &p : row) {
-        PixelShader(p);
+      for (Pixel &p : row) {
+        if (p.zinv > 0) {
+          p.pos3d = p.pos3d_persp / p.zinv;
+          PixelShader(p);
+        }
       }
     }
   }
