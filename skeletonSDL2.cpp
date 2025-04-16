@@ -14,6 +14,10 @@ using namespace std;
 using glm::mat3;
 using glm::vec3;
 
+struct Vertex {
+  vec3 position;
+};
+
 struct Pixel {
   int x, y;
   float zinv;
@@ -40,16 +44,16 @@ float depthBuffer[SCREEN_HEIGHT][SCREEN_WIDTH];
 void Update(void);
 void Draw(void);
 
-void VertexShader(const vec3 &v, Pixel &p);
-void Interpolate(glm::ivec2 a, glm::ivec2 b, vector<glm::ivec2> &result);
+void VertexShader(const Vertex &v, Pixel &p);
+void PixelShader(const Pixel &p);
 void Interpolate(Pixel a, Pixel b, vector<Pixel> &result);
-void DrawLineSDL(glm::ivec2 a, glm::ivec2 b, vec3 color);
-void DrawPolygonEdges(const vector<vec3> &vertices);
+void DrawLineSDL(Pixel a, Pixel b, vec3 color);
+void DrawPolygonEdges(const vector<Vertex> &vertices);
 void ComputePolygonRows(const vector<Pixel> &vertexPixels,
                         vector<Pixel> &leftPixels, vector<Pixel> &rightPixels);
 void DrawPolygonRows(const vector<Pixel> &leftPixels,
                      const vector<Pixel> &rightPixels);
-void DrawPolygon(const vector<vec3> &vertices);
+void DrawPolygon(const vector<Vertex> &vertices);
 
 int main(int argc, char *argv[]) {
   LoadTestModel(triangles); // Load model
@@ -121,11 +125,11 @@ void Draw() {
   }
 
   for (int i = 0; i < triangles.size(); ++i) {
-    vector<vec3> vertices(3);
+    vector<Vertex> vertices(3);
 
-    vertices[0] = triangles[i].v0;
-    vertices[1] = triangles[i].v1;
-    vertices[2] = triangles[i].v2;
+    vertices[0].position = triangles[i].v0;
+    vertices[1].position = triangles[i].v1;
+    vertices[2].position = triangles[i].v2;
 
     currentColor = triangles[i].color;
 
@@ -137,12 +141,26 @@ void Draw() {
 }
 
 // Given a 3D vertex, transform it to 2D screen coordinates
-void VertexShader(const vec3 &v, Pixel &p) {
+void VertexShader(const Vertex &v, Pixel &p) {
   float f = SCREEN_HEIGHT;
-  vec3 v1 = R * (v - cameraPos);
+  vec3 v1 = R * (v.position - cameraPos);
   p.x = f * (v1.x / v1.z) + (SCREEN_WIDTH / 2.f);
   p.y = f * (v1.y / v1.z) + (SCREEN_HEIGHT / 2.f);
   p.zinv = 1.f / v1.z;
+}
+
+void PixelShader(const Pixel &p) {
+  int x = p.x;
+  int y = p.y;
+  if (x < 0 || x >= SCREEN_WIDTH || y < 0 || y >= SCREEN_HEIGHT) {
+    return;
+  }
+  // Check if the pixel is closer than the current depth value
+  if (depthBuffer[y][x] < p.zinv) {
+    depthBuffer[y][x] = p.zinv;
+    // Draw the pixel with the current color
+    sdlAux->putPixel(x, y, currentColor);
+  }
 }
 
 void Interpolate(Pixel a, Pixel b, vector<Pixel> &result) {
@@ -170,7 +188,7 @@ void DrawLineSDL(Pixel a, Pixel b, vec3 color) {
   }
 }
 
-void DrawPolygonEdges(const vector<vec3> &vertices) {
+void DrawPolygonEdges(const vector<Vertex> &vertices) {
   int V = vertices.size();
 
   // Transform each vertex from 3D world position to 2D image position
@@ -251,20 +269,12 @@ void DrawPolygonRows(const vector<Pixel> &leftPixels,
       // Compute z value for the current pixel
       float z = z_start + (x - x_start) * z_step;
       // Check if the pixel is within the screen bounds
-      if (x < 0 || x >= SCREEN_WIDTH || y < 0 || y >= SCREEN_HEIGHT) {
-        continue;
-      }
-      // Check if the pixel is closer than the current depth value
-      if (depthBuffer[y][x] < z) {
-        depthBuffer[y][x] = z;
-        // Draw the pixel with the current color
-        sdlAux->putPixel(x, y, currentColor);
-      }
+      PixelShader(Pixel{x, y, z});
     }
   }
 }
 
-void DrawPolygon(const vector<vec3> &vertices) {
+void DrawPolygon(const vector<Vertex> &vertices) {
   int V = vertices.size();
   vector<Pixel> vertexPixels(V);
   for (int i = 0; i < V; ++i) {
