@@ -46,8 +46,16 @@ vec3 cameraPos(0, 0, -3.001);
 mat3 R(1.0f);
 float yaw = 0;
 const float moveSpeed = 0.05f;
+const float rotationSpeed = 0.05f;
 
-// Light model
+// Direction vectors for light movement
+const vec3 LIGHT_FORWARD(0, 0, 1);
+const vec3 LIGHT_BACKWARD(0, 0, -1);
+const vec3 LIGHT_LEFT(-1, 0, 0);
+const vec3 LIGHT_RIGHT(1, 0, 0);
+const vec3 LIGHT_UP(0, -1, 0);
+const vec3 LIGHT_DOWN(0, 1, 0);
+
 vec3 lightPos(0, -0.5, -0.7);
 vec3 lightPower = 11.f * vec3(1, 1, 1);
 vec3 indirectLightPowerPerArea = 0.5f * vec3(1, 1, 1);
@@ -97,6 +105,8 @@ void Update(void) {
   // yaw -= dx * mouseSensitivity;
 
   const Uint8 *keystate = SDL_GetKeyboardState(NULL);
+
+  // Camera movement
   if (keystate[SDL_SCANCODE_UP]) {
     // Move camera forward
     cameraPos += moveSpeed * vec3(R[0][2], R[1][2], R[2][2]);
@@ -107,24 +117,33 @@ void Update(void) {
   }
   if (keystate[SDL_SCANCODE_LEFT]) {
     // Move camera to the left
-    yaw -= moveSpeed;
+    yaw -= rotationSpeed;
   }
   if (keystate[SDL_SCANCODE_RIGHT]) {
     // Move camera to the right
-    yaw += moveSpeed;
+    yaw += rotationSpeed;
   }
+  
+  // Light movement
   if (keystate[SDL_SCANCODE_W]) {
+    lightPos += moveSpeed * LIGHT_FORWARD;
   }
   if (keystate[SDL_SCANCODE_S]) {
+    lightPos += moveSpeed * LIGHT_BACKWARD;
   }
   if (keystate[SDL_SCANCODE_A]) {
+    lightPos += moveSpeed * LIGHT_LEFT;
   }
   if (keystate[SDL_SCANCODE_D]) {
+    lightPos += moveSpeed * LIGHT_RIGHT;
   }
   if (keystate[SDL_SCANCODE_Q]) {
+    lightPos += moveSpeed * LIGHT_UP;
   }
   if (keystate[SDL_SCANCODE_E]) {
+    lightPos += moveSpeed * LIGHT_DOWN;
   }
+
   R = mat3(cos(yaw), 0, sin(yaw), 0, 1, 0, -sin(yaw), 0, cos(yaw));
 }
 
