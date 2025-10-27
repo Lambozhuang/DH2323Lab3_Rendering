@@ -15,12 +15,12 @@ ENDIF(APPLE)
 
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 find_package(SDL2 REQUIRED)
+find_package(glm CONFIG REQUIRED)
 
 message(STATUS "Lib: ${SDL2_LIBRARIES} , Include: ${SDL2_INCLUDE_DIRS}")
 
 include_directories(
   ${SDL2_INCLUDE_DIRS}
-  ${CMAKE_SOURCE_DIR}/glm
   ${CMAKE_SOURCE_DIR}/SDL2Auxiliary
 )
 
@@ -31,4 +31,13 @@ add_executable(DH2323SkeletonSDL2
 
 target_link_libraries(DH2323SkeletonSDL2
   ${SDL2_LIBRARIES}
+  glm::glm
 )
+
+if(WIN32)
+    add_custom_command(TARGET DH2323SkeletonSDL2 POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/bin/SDL2.dll"
+            $<TARGET_FILE_DIR:DH2323SkeletonSDL2>
+    )
+endif()
